@@ -1,0 +1,216 @@
+# -*- coding: utf-8 -*-
+"""
+Created on Mon Sep  2 21:35:40 2024
+Transition Diagrams of (b/c)_L^* and (b/c)^*, k, knn, density
+Network Numbers for One Figure: 1.32 \times 10^5
+@author: zziya
+"""
+import networkx as nx
+import GetBCRatio
+import pandas as pd
+import csv
+import numpy as np
+#Parameters
+NetSet=['ban','wsn','nwn','ern','hkn','ddn']
+network_type='wsn'
+Ns=np.arange(40,141,1)
+fpfunc='1-k^-1'
+fpfuncs=['(k+1)^-1','e^-k','1-k^-1','lnk']
+def Failure_Probability(k):
+    if fpfunc=='(k+1)^-1':
+        return 1/(k+1)
+    if fpfunc=='1-k^-1':
+        return 1-1/k
+    if fpfunc=='lnk':
+        return np.log(k)
+    if fpfunc=='e^-k':
+        return np.exp(-k)
+def Trans_to_Selfloop(g):
+    for i in g.nodes:
+        g.add_edge(i,i,weight=Failure_Probability(g.degree(i)))
+    return g
+csv_head=['bcl','bc','k','knn','density','net']
+with open('.\\saves\\comparison\\{}_{}.csv'.format(network_type,fpfunc),'w',newline='') as result:
+    csv_write = csv.writer(result)
+    csv_write.writerow(csv_head)
+def write_csv(row):
+    with open('.\\saves\\comparison\\{}_{}.csv'.format(network_type,fpfunc),'a',newline='') as result:
+        csv_write=csv.writer(result)
+        csv_write.writerow(row)
+#Preparation for Network Parameters
+if network_type=='ban':#2e+4
+    ms=np.arange(1,11,1)#10
+    avgs=20
+if network_type=='wsn':#2.4e+4
+    ks=np.arange(2,9,2)#4
+    ps=np.arange(0.1,0.251,0.03)#6
+    avgs=10
+if network_type=='ern':#1.2e+4
+    ps=np.arange(0.1, 0.31, 0.025)#8
+    avgs=15
+if network_type=='nwn':#2.4e+4
+    ks=np.arange(2,9,2)#4
+    ps=np.arange(0.1,0.251,0.03)#6
+    avgs=10
+if network_type=='hkn':#2.4e+4
+    ms=np.arange(1,8,2)#4
+    ps=np.arange(0.1,0.251,0.03)#6
+    avgs=10
+if network_type=='rpt':#2e+4
+    gammas=np.arange(2.5,3.5,0.1)#10
+    avgs=20
+if network_type=='ddn':#2.2e+4
+    ps=np.arange(0.1,0.32,0.02)#11
+    avgs=20
+#Calculation
+if network_type=='ban':
+    maxn=max(Ns)
+    maxm=max(ms)
+    for N in Ns:
+        for m in ms:
+            print("\r NET : {}, fpfunc : {}, N : {:d}/{:d}, m : {:d}/{:d}".format(network_type,fpfunc, N,maxn, m,maxm), end='      ')
+            for avg in range(avgs):
+                G=nx.generators.barabasi_albert_graph(int(N),int(m))
+                while not nx.is_connected(G):
+                    G=nx.generators.barabasi_albert_graph(int(N),int(m))
+                for u, v in G.edges():
+                    G.edges[u, v]['weight']=1
+                bc=GetBCRatio.Get_BCRatio(G)
+                kmean=2*G.number_of_edges()/G.number_of_nodes()
+                knn=nx.average_neighbor_degree(G)
+                knnmean=np.mean(list(knn.values()))
+                dens=nx.density(G)
+                G=Trans_to_Selfloop(G)
+                bcl=GetBCRatio.Get_BCRatio(G)
+                row=[bcl,bc,kmean,knnmean,dens,(N,m)]
+                write_csv(row)
+if network_type=='wsn':
+    maxn=max(Ns)
+    maxk=max(ks)
+    maxp=max(ps)
+    for N in Ns:
+        for k in ks:
+            for p in ps:
+                print("\r NET : {}, fpfunc : {}, N : {:d}/{:d}, k : {:d}/{:d}, p : {:.3f}/{:.3f}".format(network_type,fpfunc, N,maxn, k,maxk, p,maxp), end='      ')
+                for avg in range(avgs):
+                    G=nx.generators.watts_strogatz_graph(int(N), int(k), p)
+                    while not nx.is_connected(G):
+                        G=nx.generators.watts_strogatz_graph(int(N), int(k), p)
+                    for u, v in G.edges():
+                        G.edges[u, v]['weight']=1
+                    bc=GetBCRatio.Get_BCRatio(G)
+                    kmean=2*G.number_of_edges()/G.number_of_nodes()
+                    knn=nx.average_neighbor_degree(G)
+                    knnmean=np.mean(list(knn.values()))
+                    dens=nx.density(G)
+                    G=Trans_to_Selfloop(G)
+                    bcl=GetBCRatio.Get_BCRatio(G)
+                    row=[bcl,bc,kmean,knnmean,dens,(N,k,p)]
+                    write_csv(row)
+if network_type=='nwn':
+    maxn=max(Ns)
+    maxk=max(ks)
+    maxp=max(ps)
+    for N in Ns:
+        for k in ks:
+            for p in ps:
+                print("\r NET : {}, fpfunc : {}, N : {:d}/{:d}, k : {:d}/{:d}, p : {:.3f}/{:.3f}".format(network_type, fpfunc, N,maxn, k,maxk, p,maxp), end='      ')
+                for avg in range(avgs):
+                    G=nx.newman_watts_strogatz_graph(int(N), int(k), p)
+                    while not nx.is_connected(G):
+                        G=nx.newman_watts_strogatz_graph(int(N), int(k), p)
+                    for u, v in G.edges():
+                        G.edges[u, v]['weight']=1
+                    bc=GetBCRatio.Get_BCRatio(G)
+                    kmean=2*G.number_of_edges()/G.number_of_nodes()
+                    knn=nx.average_neighbor_degree(G)
+                    knnmean=np.mean(list(knn.values()))
+                    dens=nx.density(G)
+                    G=Trans_to_Selfloop(G)
+                    bcl=GetBCRatio.Get_BCRatio(G)
+                    row=[bcl,bc,kmean,knnmean,dens,(N,k,p)]
+                    write_csv(row)
+if network_type=='ern':
+    maxn=max(Ns)
+    maxp=max(ps)
+    for N in Ns:
+        for p in ps:
+            print("\r NET : {}, fpfunc : {}, N : {:d}/{:d}, p : {:.3f}/{:.3f}".format(network_type,fpfunc, N,maxn, p,maxp), end='      ')
+            for avg in range(avgs):
+                G=nx.erdos_renyi_graph(int(N), p)
+                while not nx.is_connected(G):
+                    G=nx.erdos_renyi_graph(int(N), p)
+                for u, v in G.edges():
+                    G.edges[u, v]['weight']=1
+                bc=GetBCRatio.Get_BCRatio(G)
+                kmean=2*G.number_of_edges()/G.number_of_nodes()
+                knn=nx.average_neighbor_degree(G)
+                knnmean=np.mean(list(knn.values()))
+                dens=nx.density(G)
+                G=Trans_to_Selfloop(G)
+                bcl=GetBCRatio.Get_BCRatio(G)
+                row=[bcl,bc,kmean,knnmean,dens,(N,p)]
+                write_csv(row)
+if network_type=='hkn':
+    maxn=max(Ns)
+    maxm=max(ms)
+    maxp=max(ps)
+    for N in Ns:
+        for p in ps:
+            for m in ms:
+                print("\r NET : {}, fpfunc : {}, N : {:d}/{:d}, m : {:d}/{:d}, p : {:.3f}/{:.3f}".format(network_type,fpfunc, N,maxn, m,maxm, p,maxp), end='      ')
+                for avg in range(avgs):
+                    G=nx.powerlaw_cluster_graph(int(N), int(m), p)
+                    while not nx.is_connected(G):
+                        G=nx.powerlaw_cluster_graph(int(N), int(m), p)
+                    for u, v in G.edges():
+                        G.edges[u, v]['weight']=1
+                    bc=GetBCRatio.Get_BCRatio(G)
+                    kmean=2*G.number_of_edges()/G.number_of_nodes()
+                    knn=nx.average_neighbor_degree(G)
+                    knnmean=np.mean(list(knn.values()))
+                    dens=nx.density(G)
+                    G=Trans_to_Selfloop(G)
+                    bcl=GetBCRatio.Get_BCRatio(G)
+                    row=[bcl,bc,kmean,knnmean,dens,(N,m,p)]
+                    write_csv(row)
+if network_type=='rpt':
+    maxn=max(Ns)
+    maxgamma=max(gammas)
+    for N in Ns:
+        for gamma in gammas:
+            print("\r NET : {}, fpfunc : {}, N : {:d}/{:d}, gamma : {:.3f}/{:.3f}".format(network_type,fpfunc, N,maxn, gamma,maxgamma), end='      ')
+            for avg in range(avgs):
+                G=nx.random_powerlaw_tree(int(N), gamma, tries=100)
+                for u, v in G.edges():
+                    G.edges[u, v]['weight']=1
+                bc=GetBCRatio.Get_BCRatio(G)
+                kmean=2*G.number_of_edges()/G.number_of_nodes()
+                knn=nx.average_neighbor_degree(G)
+                knnmean=np.mean(list(knn.values()))
+                dens=nx.density(G)
+                G=Trans_to_Selfloop(G)
+                bcl=GetBCRatio.Get_BCRatio(G)
+                row=[bcl,bc,kmean,knnmean,dens,(N,gamma)]
+                write_csv(row)
+if network_type=='ddn':
+    maxn=max(Ns)
+    maxp=max(ps)
+    for N in Ns:
+        for p in ps:
+            print("\r NET : {}, fpfunc : {}, N : {:d}/{:d}, p : {:.3f}/{:.3f}".format(network_type,fpfunc, N,maxn, p,maxp), end='      ')
+            for avg in range(avgs):
+                G=nx.duplication_divergence_graph(int(N), p)
+                while not nx.is_connected(G):
+                    G=nx.duplication_divergence_graph(int(N), p)
+                for u, v in G.edges():
+                    G.edges[u, v]['weight']=1
+                bc=GetBCRatio.Get_BCRatio(G)
+                kmean=2*G.number_of_edges()/G.number_of_nodes()
+                knn=nx.average_neighbor_degree(G)
+                knnmean=np.mean(list(knn.values()))
+                dens=nx.density(G)
+                G=Trans_to_Selfloop(G)
+                bcl=GetBCRatio.Get_BCRatio(G)
+                row=[bcl,bc,kmean,knnmean,dens,(N,p)]
+                write_csv(row)
